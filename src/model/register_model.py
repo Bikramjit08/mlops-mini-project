@@ -20,7 +20,7 @@ import dagshub
 
 dagshub_url = "https://dagshub.com"
 repo_owner = "Bikramjit08"
-repo_name = "mlops-mini-project"
+repo_name = "mlops-mini-project-2"
 
 dagshub.init(repo_owner='your-username', 
              repo_name='your-repo', 
