@@ -3,6 +3,7 @@ import mlflow
 from preprocessing_utility import normalize_text
 import dagshub
 import pickle
+import pandas as pd
 
 
 dagshub_url = "https://dagshub.com"
@@ -15,11 +16,18 @@ dagshub.init(repo_owner='Bikramjit08', repo_name='mlops-mini-project', mlflow=Tr
 app = Flask(__name__)
 
 # load model from model registry
+def get_latest_model_version(model_name):
+    client = mlflow.MlflowClient()
+    latest_version = client.get_latest_versions(model_name, stages=["Production"])
+    if not latest_version:
+        latest_version = client.get_latest_versions(model_name, stages=["None"])
+    return latest_version[0].version if latest_version else None
+
+
 model_name = "my_model"
-model_version = 1
+model_version = get_latest_model_version(model_name)
 
 model_uri = f'models:/{model_name}/{model_version}'
-
 model = mlflow.pyfunc.load_model(model_uri)
 
 vectorizer = pickle.load(open('models/vectorizer.pkl','rb'))
@@ -32,27 +40,25 @@ def home():
 
 @app.route('/predict',methods=['POST'])
 
-def predict ():
+def predict():
+
     text = request.form['text']
 
-
-
-
-    # clean the text
-
+    # clean
     text = normalize_text(text)
 
-    # Apply BOW
+    # bow
     features = vectorizer.transform([text])
 
-    # Prediction
-    result = model.predict(features)
+    # Convert sparse matrix to DataFrame
+    features_df = pd.DataFrame.sparse.from_spmatrix(features)
+    features_df = pd.DataFrame(features.toarray(), columns=[str(i) for i in range(features.shape[1])])
 
+    # prediction
+    result = model.predict(features_df)
 
-
-    # Show
+    # show
     return render_template('index.html', result=result[0])
-
 
 
     
