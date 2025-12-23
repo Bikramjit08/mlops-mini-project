@@ -3,6 +3,8 @@ import os
 import mlflow
 from flask_app.app import app
 
+os.environ['MLFLOW_TRACKING_URI'] = ''
+
 class FlaskAppTests(unittest.TestCase):
 
     @classmethod
