@@ -51,5 +51,8 @@ jobs:
         if: success()
         env:
           MLFLOW_TRACKING_URI: ""
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+          TESTING_MODE: "true"
         run: python -m unittest tests/test_flask_app.py
+
+          
+   
