@@ -1,10 +1,14 @@
-# promote model
+# promote model (RECTIFIED - alias based)
 
 import os
 import mlflow
+from mlflow.tracking import MlflowClient
+
 
 def promote_model():
-    # Set up DagsHub credentials for MLflow tracking
+    # -------------------------------
+    # MLflow + DagsHub authentication
+    # -------------------------------
     dagshub_token = os.getenv("DAGSHUB_PAT")
     if not dagshub_token:
         raise EnvironmentError("DAGSHUB_PAT environment variable is not set")
@@ -15,31 +19,51 @@ def promote_model():
     dagshub_url = "https://dagshub.com"
     repo_owner = "Bikramjit08"
     repo_name = "mlops-mini-project"
-    # Set up MLflow tracking URI
-    mlflow.set_tracking_uri(f'{dagshub_url}/{repo_owner}/{repo_name}.mlflow')
 
-    client = mlflow.MlflowClient()
+    mlflow.set_tracking_uri(f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow")
+
+    client = MlflowClient()
 
     model_name = "my_model"
-    # Get the latest version in staging
-    latest_version_staging = client.get_latest_versions(model_name, stages=["Staging"])[0].version
 
-    # Archive the current production model
-    prod_versions = client.get_latest_versions(model_name, stages=["Production"])
-    for version in prod_versions:
-        client.transition_model_version_stage(
-            name=model_name,
-            version=version.version,
-            stage="Archived"
-        )
-
-    # Promote the new model to production
-    client.transition_model_version_stage(
+    # -------------------------------
+    # 1. Get version tagged as "staging"
+    # -------------------------------
+    staging_versions = client.get_model_version_by_alias(
         name=model_name,
-        version=latest_version_staging,
-        stage="Production"
+        alias="staging"
     )
-    print(f"Model version {latest_version_staging} promoted to Production")
+
+    staging_version = staging_versions.version
+
+    # -------------------------------
+    # 2. Remove old champion (if exists)
+    # -------------------------------
+    try:
+        old_champion = client.get_model_version_by_alias(
+            name=model_name,
+            alias="champion"
+        )
+        client.delete_registered_model_alias(
+            name=model_name,
+            alias="champion"
+        )
+        print(f"Removed champion alias from version {old_champion.version}")
+    except Exception:
+        # No existing champion → safe to ignore
+        pass
+
+    # -------------------------------
+    # 3. Promote staging → champion
+    # -------------------------------
+    client.set_registered_model_alias(
+        name=model_name,
+        alias="champion",
+        version=staging_version
+    )
+
+    print(f"Model version {staging_version} promoted to CHAMPION")
+
 
 if __name__ == "__main__":
     promote_model()
