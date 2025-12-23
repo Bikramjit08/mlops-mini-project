@@ -1,6 +1,7 @@
 from flask import Flask,render_template,request
 import mlflow
-from preprocessing_utility import normalize_text
+# from preprocessing_utility import normalize_text
+from flask_app.preprocessing_utility import normalize_text
 import dagshub
 import pickle
 import pandas as pd
@@ -64,4 +65,4 @@ def predict():
     
 
 if __name__ == "__main__":
-   app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
