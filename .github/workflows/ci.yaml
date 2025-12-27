@@ -54,8 +54,7 @@ jobs:
           TESTING_MODE: "true"
         run: python -m unittest tests/test_flask_app.py
 
-      # DOCKER_HUB_USERNAME bikramjitmondal
-    # DOCKER_HUB_ACCESS_TOKEN : dckr_pat_N6YjL9X_6gxZPPnFerrI1Vca33U
+
 
       - name: Log in to Docker Hub
         if: success()
