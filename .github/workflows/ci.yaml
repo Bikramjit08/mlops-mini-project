@@ -54,5 +54,22 @@ jobs:
           TESTING_MODE: "true"
         run: python -m unittest tests/test_flask_app.py
 
+      # DOCKER_HUB_USERNAME bikramjitmondal
+    # DOCKER_HUB_ACCESS_TOKEN : dckr_pat_N6YjL9X_6gxZPPnFerrI1Vca33U
+
+      - name: Log in to Docker Hub
+        if: success()
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets DOCKER_HUB_USERNAME}}
+          password: ${{ secrets DOCKER_HUB_ACCESS_TOKEN }}
           
-   
+      - name: Build Docker image
+        if: success()
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/emotion2.1:latest .
+
+      - name: Push Docker image to Docker HUB
+        if: success()
+        run: |
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/emotion2.1:latest 

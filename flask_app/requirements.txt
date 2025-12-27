@@ -1,0 +1,8 @@
+flask
+mlflow
+dagshub
+pandas
+scikit-learn
+nltk
+numpy
+gunicorn
