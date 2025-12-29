@@ -91,7 +91,7 @@ jobs:
             
             # Run new container with restart policy
             docker run -d \
-              -p 8080:5000 \
+              -p 80:5000 \
               --name my-app \
               --restart unless-stopped \
               -e DAGSHUB_PAT=${{ secrets.DAGSHUB_PAT }} \
