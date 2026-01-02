@@ -126,17 +126,17 @@ jobs:
         run: |
          docker push 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
       
-      # Zip the required filess
-      - name: Zip files for deployment
-        if: success()
-        run: |
-          zip -r deployment.zip appspec.yml deploy/scripts/install_dependencies.sh deploy/scripts/start_docker.sh
+      # # Zip the required filess
+      # - name: Zip files for deployment
+      #   if: success()
+      #   run: |
+      #     zip -r deployment.zip appspec.yml deploy/scripts/install_dependencies.sh deploy/scripts/start_docker.sh
 
-      # Upload the ZIP file to S3
-      - name: Upload ZIP to S3
-        if: success()
-        run: |
-          aws s3 cp deployment.zip s3://campusxcodedeploybucket/deployment.zip
+      # # Upload the ZIP file to S3
+      # - name: Upload ZIP to S3
+      #   if: success()
+      #   run: |
+      #     aws s3 cp deployment.zip s3://campusxcodedeploybucket/deployment.zip
 
       - name: Deploy to EC2
         if: success()
@@ -160,3 +160,4 @@ jobs:
              
 	         
 
+ 
