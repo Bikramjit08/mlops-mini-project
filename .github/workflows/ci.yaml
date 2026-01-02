@@ -7,155 +7,148 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout code
-        uses: actions/checkout@v3
+    - name: checkout code
+      uses: actions/checkout@v3
 
-      - name: setup python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10'
+    - name: setup python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: run pipeline
+      env:
+        DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      run: |
+        dvc repro
+
+    - name: Run model tests
+      env:
+        DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      run: |
+        python -m unittest tests/test_model.py
+
+    - name: Promote model to production
+      if: success()
+      env:
+        DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      run: python scripts/promote_model.py
+
+    - name: Run Flask app tests
+      if: success()
+      env:
+        MLFLOW_TRACKING_URI: ""
+        TESTING_MODE: "true"
+      run: python -m unittest tests/test_flask_app.py
+
+    # - name: Log in to Docker Hub
+    #   if: success()
+    #   uses: docker/login-action@v2
+    #   with:
+    #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
+    #     password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
 
-      - name: install dependencies
-        run: |
-          pip install -r requirements.txt
+    # - name: Build Docker image
+    #   if: success()
+    #   run: |
+    #     docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest .
 
-      - name: run pipeline
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }} 
-        run: |
-          dvc repro
-        
+    # - name: Push Docker image to Docker HUB
+    #   if: success()
+    #   run: |
+    #     docker push ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest 
 
-      - name: Run model tests
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: |
-          python -m unittest tests/test_model.py
+    # - name: Deploy to EC2
+    #   if: success()
+    #   uses: appleboy/ssh-action@v0.1.5
+    #   with:
+    #     host: ${{ secrets.EC2_HOST }}
+    #     username: ${{ secrets.EC2_USER }}
+    #     key: ${{ secrets.EC2_SSH_KEY }}
+    #     script: |
+    #       # Pull latest image
+    #       docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest 
 
-      - name: Promote model to production
-        if: success()
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: python scripts/promote_model.py
+    #       # Stop and remove old container
+    #       docker stop my-app || true
+    #       docker rm my-app || true
 
-      - name: Run Flask app tests
-        if: success()
-        env:
-          MLFLOW_TRACKING_URI: ""
-          TESTING_MODE: "true"
-        run: python -m unittest tests/test_flask_app.py
+    #       # Run new container with restart policy
+    #       docker run -d \
+    #         -p 80:5000 \
+    #         --name my-app \
+    #         --restart unless-stopped \
+    #         -e DAGSHUB_PAT=${{ secrets.DAGSHUB_PAT }} \
+    #         ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest
 
+    #       # Clean up old images
+    #       docker image prune -f
 
+    #       # Wait and verify container is running
+    #       sleep 5
+    #       docker ps | grep my-app
 
-      # - name: Log in to Docker Hub
-      #   if: success()
-      #   uses: docker/login-action@v2
-      #   with:
-      #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
-      #     password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+    - name: Login to AWS ECR
+      if: success()
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 341375585522.dkr.ecr.ap-south-1.amazonaws.com
 
-          
-      # - name: Build Docker image
-      #   if: success()
-      #   run: |
-      #     docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest .
+    - name: Build Docker image
+      if: success()
+      run: |
+        docker build -t biku/mini_project_ecr .
 
-      # - name: Push Docker image to Docker HUB
-      #   if: success()
-      #   run: |
-      #     docker push ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest 
-      
-      # - name: Deploy to EC2
-      #   if: success()
-      #   uses: appleboy/ssh-action@v0.1.5
-      #   with:
-      #     host: ${{ secrets.EC2_HOST }}
-      #     username: ${{ secrets.EC2_USER }}
-      #     key: ${{ secrets.EC2_SSH_KEY }}
-      #     script: |
-      #       # Pull latest image
-      #       docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest 
-            
-      #       # Stop and remove old container
-      #       docker stop my-app || true
-      #       docker rm my-app || true
-            
-      #       # Run new container with restart policy
-      #       docker run -d \
-      #         -p 80:5000 \
-      #         --name my-app \
-      #         --restart unless-stopped \
-      #         -e DAGSHUB_PAT=${{ secrets.DAGSHUB_PAT }} \
-      #         ${{ secrets.DOCKER_HUB_USERNAME }}/emotion3:latest
-            
-      #       # Clean up old images
-      #       docker image prune -f
-            
-      #       # Wait and verify container is running
-      #       sleep 5
-      #       docker ps | grep my-app
+    - name: Tag Docker image
+      if: success()
+      run: |
+        docker tag biku/mini_project_ecr:latest 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
 
-      - name: Login to AWS ECR
-        if: success()
-        run: |
+    - name: Push Docker image to AWS ECR
+      if: success()
+      run: |
+        docker push 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
+
+    # # Zip the required filess
+    # - name: Zip files for deployment
+    #   if: success()
+    #   run: |
+    #     zip -r deployment.zip appspec.yml deploy/scripts/install_dependencies.sh deploy/scripts/start_docker.sh
+
+    # # Upload the ZIP file to S3
+    # - name: Upload ZIP to S3
+    #   if: success()
+    #   run: |
+    #     aws s3 cp deployment.zip s3://campusxcodedeploybucket/deployment.zip
+
+    - name: Deploy to EC2
+      if: success()
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+
+        script: |+
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 341375585522.dkr.ecr.ap-south-1.amazonaws.com
+          docker pull 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
+          docker stop my-app || true
+          docker rm my-app || true
+          docker run -d -p 80:5000 -e DAGSHUB_PAT=${{ secrets.DAGSHUB_PAT }} --name my-app 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
 
-      - name: Build Docker image
-        if: success()
-        run: |
-          docker build -t biku/mini_project_ecr .
-
-      - name: Tag Docker image
-        if: success()
-        run: |
-          docker tag biku/mini_project_ecr:latest 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
-
-      - name: Push Docker image to AWS ECR
-        if: success()
-        run: |
-         docker push 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
-      
-      # # Zip the required filess
-      # - name: Zip files for deployment
-      #   if: success()
-      #   run: |
-      #     zip -r deployment.zip appspec.yml deploy/scripts/install_dependencies.sh deploy/scripts/start_docker.sh
-
-      # # Upload the ZIP file to S3
-      # - name: Upload ZIP to S3
-      #   if: success()
-      #   run: |
-      #     aws s3 cp deployment.zip s3://campusxcodedeploybucket/deployment.zip
-
-      - name: Deploy to EC2
-        if: success()
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set default.region ap-south-1
-            aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 341375585522.dkr.ecr.ap-south-1.amazonaws.com
-            docker pull 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
-            docker stop my-app || true
-            docker rm my-app || true
-            docker run -d -p 80:5000 -e DAGSHUB_PAT=e2e729751afb187da082f15eaa77950e705b7c26 --name my-app 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
-
-             
-	         
-
-  
+           
