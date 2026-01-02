@@ -153,10 +153,8 @@ jobs:
             docker pull 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
             docker stop my-app || true
             docker rm my-app || true
-            docker run -d -p 80:5000 -e DAGSHUB_PAT=e2e729751afb187da082f15eaa77950e705b7c26 --name ecr  341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest	
-            
+            docker run -d -p 80:5000 -e DAGSHUB_PAT=e2e729751afb187da082f15eaa77950e705b7c26 --name my-app 341375585522.dkr.ecr.ap-south-1.amazonaws.com/biku/mini_project_ecr:latest
 
-            
              
 	         
 
